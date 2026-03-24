@@ -1,0 +1,16 @@
+---
+- name: Set up NodeSource repository for Node.js 18
+  shell: "curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -"
+  args:
+    creates: /etc/yum.repos.d/nodesource.repo
+
+- name: Install Node.js 18
+  yum:
+    name: nodejs
+    state: present
+
+- name: Install Yarn via npm
+  npm:
+    name: yarn
+    global: true
+    state: present

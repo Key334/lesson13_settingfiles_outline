@@ -1,0 +1,12 @@
+---
+- name: Deploy raisetech-live8-sample-app to EC2
+  hosts: web
+  become: true
+  roles:
+    - common
+    - ruby
+    - nodejs
+    - mysql_client
+    - redis
+    - nginx
+    - rails_app

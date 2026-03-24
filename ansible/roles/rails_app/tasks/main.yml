@@ -1,0 +1,101 @@
+---
+- name: Create app root directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Clone application repository
+  become_user: "{{ app_user }}"
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dir }}"
+    version: main
+    force: false
+
+- name: Create required directories
+  file:
+    path: "{{ app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  loop:
+    - tmp/sockets
+    - tmp/pids
+    - log
+
+- name: Deploy database.yml
+  template:
+    src: database.yml.j2
+    dest: "{{ app_dir }}/config/database.yml"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0640'
+
+- name: Deploy master.key
+  copy:
+    content: "{{ rails_master_key }}"
+    dest: "{{ app_dir }}/config/master.key"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0400'
+
+- name: Run bundle install
+  become_user: "{{ app_user }}"
+  shell: >
+    /home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin/bundle install
+    --without development test
+  args:
+    chdir: "{{ app_dir }}"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"
+    RAILS_ENV: "{{ rails_env }}"
+
+- name: Precompile assets
+  become_user: "{{ app_user }}"
+  shell: >
+    /home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin/bundle exec rails assets:precompile
+  args:
+    chdir: "{{ app_dir }}"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"
+    RAILS_ENV: "{{ rails_env }}"
+    RAILS_MASTER_KEY: "{{ rails_master_key }}"
+    DB_HOST: "{{ db_host }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USERNAME: "{{ db_username }}"
+    DB_PASSWORD: "{{ db_password }}"
+    AWS_S3_BUCKET_NAME: "{{ s3_bucket_name }}"
+
+- name: Create database and run migrations
+  become_user: "{{ app_user }}"
+  shell: >
+    /home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin/bundle exec rails db:create db:migrate
+  args:
+    chdir: "{{ app_dir }}"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"
+    RAILS_ENV: "{{ rails_env }}"
+    RAILS_MASTER_KEY: "{{ rails_master_key }}"
+    DB_HOST: "{{ db_host }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USERNAME: "{{ db_username }}"
+    DB_PASSWORD: "{{ db_password }}"
+
+- name: Deploy Puma systemd service file
+  template:
+    src: puma.service.j2
+    dest: /etc/systemd/system/puma.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd and restart Puma
+
+- name: Enable and start Puma service
+  service:
+    name: puma
+    state: started
+    enabled: true

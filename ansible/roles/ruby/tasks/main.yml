@@ -1,0 +1,53 @@
+---
+- name: Clone rbenv repository
+  become_user: "{{ app_user }}"
+  git:
+    repo: https://github.com/rbenv/rbenv.git
+    dest: "/home/{{ app_user }}/.rbenv"
+    update: false
+
+- name: Clone ruby-build plugin
+  become_user: "{{ app_user }}"
+  git:
+    repo: https://github.com/rbenv/ruby-build.git
+    dest: "/home/{{ app_user }}/.rbenv/plugins/ruby-build"
+    update: false
+
+- name: Add rbenv initialization to .bash_profile
+  become_user: "{{ app_user }}"
+  blockinfile:
+    path: "/home/{{ app_user }}/.bash_profile"
+    block: |
+      export PATH="$HOME/.rbenv/bin:$PATH"
+      eval "$(rbenv init -)"
+    marker: "# {mark} RBENV SETUP"
+    create: true
+
+- name: Check if Ruby {{ ruby_version }} is already installed
+  become_user: "{{ app_user }}"
+  shell: "/home/{{ app_user }}/.rbenv/bin/rbenv versions --bare | grep -x {{ ruby_version }}"
+  register: ruby_installed
+  changed_when: false
+  failed_when: false
+
+# Ruby のビルドには数分かかります（async で最大30分待機）
+- name: Install Ruby {{ ruby_version }}
+  become_user: "{{ app_user }}"
+  shell: "/home/{{ app_user }}/.rbenv/bin/rbenv install {{ ruby_version }}"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/usr/local/bin:/usr/bin:/bin"
+  when: ruby_installed.rc != 0
+  async: 1800
+  poll: 30
+
+- name: Set Ruby {{ ruby_version }} as global version
+  become_user: "{{ app_user }}"
+  shell: "/home/{{ app_user }}/.rbenv/bin/rbenv global {{ ruby_version }}"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/usr/local/bin:/usr/bin:/bin"
+
+- name: Install Bundler
+  become_user: "{{ app_user }}"
+  shell: "/home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin/gem install bundler --no-document"
+  environment:
+    PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"

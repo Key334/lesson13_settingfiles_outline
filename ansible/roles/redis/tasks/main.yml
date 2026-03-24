@@ -1,0 +1,17 @@
+---
+# Gemfile に gem "redis" が含まれているため Action Cable 用にインストール
+
+- name: Enable redis6 via amazon-linux-extras
+  shell: amazon-linux-extras enable redis6
+  changed_when: false
+
+- name: Install Redis
+  yum:
+    name: redis
+    state: present
+
+- name: Start and enable Redis service
+  service:
+    name: redis
+    state: started
+    enabled: true

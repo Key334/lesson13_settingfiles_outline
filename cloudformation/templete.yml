@@ -1,0 +1,496 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC ALBSG S3 RDS EC2 ALB create
+
+
+Parameters:
+  NameBase: 
+    Type: String
+    Default: raisetech2-lecture13
+    Description: Base name for resources
+
+  KeyName:
+    Description: The name of the EC2 Key Pair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 Key Pair
+
+  MyCidrIp:
+    NoEcho: true
+    Type: String
+    Description: Enter the CIDR IP for the security group ingress rule    
+
+
+Resources:
+ # vpc
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.1.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${NameBase}-vpc"
+
+
+ # subnet
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.1.0.0/24
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-public1-ap-northeast-1a
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: 
+        !Select [1, !GetAZs '']
+      CidrBlock: 10.1.10.0/24
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-public2-ap-northeast-1c
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.1.100.0/24
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-private1-ap-northeast-1a
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.1.200.0/24
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-private2-ap-northeast-1c
+
+
+ # RouteTable
+ # public
+  PublicRouteTable: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-rtb-public
+
+ # private
+  PrivateRouteTable1: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-rtb-private1-ap-northeast-1a
+
+  PrivateRouteTable2: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-rtb-private2-ap-northeast-1c
+
+
+ # InternetGateway
+  InternetGateway: 
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${NameBase}-igw
+
+ # igw Attach
+  InternetGatewayAttachment: 
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+
+ # Routing
+  PublicRoute: 
+    Type: AWS::EC2::Route
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+ 
+ # RouteTable Associate
+  PublicSubnet1RouteTableAssociation: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref PublicSubnet1 
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref PublicSubnet2 
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet1RouteTableAssociation: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref PrivateSubnet1 
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateSubnet2RouteTableAssociation: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+# ALB Security Group
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+# S3
+  S3Bucket:
+    # S3バケット作成
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: raisetech-lecture10-cf
+      # 暗号化についての設定
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: 
+          # 暗号化にはS3管理のSSE-S3を使用するように設定
+          # バケットキーの有効化
+          - ServerSideEncryptionByDefault: 
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      # パブリックアクセスをすべて無効化
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # バージョニング設定の無効化
+      VersioningConfiguration:
+        Status: Suspended 
+      Tags:
+        - Key: Name
+          Value: raisetech
+
+# RDS
+  # サブネットグループ作成
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: For RDS
+      DBSubnetGroupName: raisetech2-lecture10-DBSubnetGroup
+      SubnetIds:
+      - !Ref PrivateSubnet1
+      - !Ref PrivateSubnet2
+      Tags:
+      - Key: Name
+        Value: raisetech2-lecture10-DBSubnetGroup
+
+
+  # RDSインスタンス作成
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      # 設定したいDBインスタンス識別子
+      DBInstanceIdentifier: database-2
+      DBInstanceClass: db.t3.micro
+      Engine: MySQL
+      EngineVersion: 8.0.35
+      MasterUsername: "{{resolve:secretsmanager:MySecret:SecretString:username}}"
+      MasterUserPassword: "{{resolve:secretsmanager:MySecret:SecretString:password}}"
+      DBName: RDS2
+      AvailabilityZone: 
+        !Select [0, !GetAZs '']
+      # パブリックアクセス
+      PubliclyAccessible: false
+      StorageType: gp2
+      AllocatedStorage: 20
+      # 暗号化
+      StorageEncrypted: true
+      # AWS管理キーを使用
+      KmsKeyId: alias/aws/rds
+      # バックアップ保持期間を指定
+      BackupRetentionPeriod: 1
+      # スナップショットの作成
+      CopyTagsToSnapshot: true
+      # リソースの削除保護機能
+      DeletionProtection: false
+      # RDS削除に生成されるスナップショットの自動削除
+      DeleteAutomatedBackups: true
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      VPCSecurityGroups:
+       - !Ref RDSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${NameBase}-lecture10-RDS
+
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupName: raisetech2-lecture10-RDS-sg
+      GroupDescription: for RDS
+      Tags:
+        - Key: Name
+          Value: raisetech2-lecture10-RDS-sg
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+# EC2          
+ # SecurityGroup
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and HTTP access
+      VpcId: !Ref VPC
+      Tags:
+          - Key: Name
+            Value: !Sub ${NameBase}-sg-ec2-lecture10
+      # インバウンドルール
+      SecurityGroupIngress: 
+      # ssh
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref MyCidrIp
+      
+      # HTTP
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+      # HTTP
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: !Ref MyCidrIp
+
+
+ # EC2
+  EC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      # AmazonLinux2 AMI ID
+      ImageId: ami-0eda63ec8af4f056e
+      # keypair
+      KeyName: !Ref KeyName
+      InstanceType: t2.micro
+      NetworkInterfaces: 
+      - AssociatePublicIpAddress: true
+        DeviceIndex: 0
+        GroupSet:
+          -  !Ref EC2SecurityGroup
+        SubnetId: !Ref PublicSubnet1
+      BlockDeviceMappings: 
+      - DeviceName: /dev/xvda
+        Ebs:
+          VolumeType: gp2
+          DeleteOnTermination: true
+          VolumeSize: 16
+      IamInstanceProfile: !Ref S3AccessInstanceProfile
+        
+
+  # IAM Role
+  S3AccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      Tags:
+        - Key: Name
+          Value: !Sub "lecture10-iamrole-${NameBase}"
+
+  # IAM Policy
+  S3AccessPolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: s3access
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:DeleteObject"
+              - "s3:ListBucket"
+            Resource: "arn:aws:s3:::*"
+          - Effect: Allow
+            Action: "*"
+            Resource:
+              - !GetAtt S3Bucket.Arn
+              - !Sub "${S3Bucket.Arn}/*"
+      Roles:
+        - !Ref S3AccessRole
+
+  # Instance Profile
+  S3AccessInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref S3AccessRole
+
+# ALB, TargetGroup, Listener作成
+ # TargetGroup
+  TargetGroup: 
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      VpcId: !Ref VPC
+      Name: !Sub ${NameBase}-tg
+      IpAddressType: ipv4
+    # ターゲットにトラフィックをルーティングするために使用するプロトコル
+      Protocol: HTTP
+      ProtocolVersion: HTTP1
+      Port: 80
+      TargetType: instance
+      Targets: 
+        - Id: !Ref EC2
+          Port: 80
+    # ヘルスチェックを有効化
+      HealthCheckEnabled: true
+    # ヘルスチェックプロトコル（ターゲットでヘルスチェックを実行するときにロードバランサーが使用するプロトコル）
+      HealthCheckProtocol: HTTP
+    # ヘルスチェックパス(ヘルスチェックのターゲットの送信先)
+      HealthCheckPath: /
+    # ヘルスチェックポート(ターゲットでヘルスチェックを実行するときにロードバランサーが使用するポート)
+      HealthCheckPort: traffic-port
+    # 正常のしきい値(非正常なインスタンスが正常であると見なすまでに必要なヘルスチェックの連続成功回数)
+      HealthyThresholdCount: 5
+    # 非正常のしきい値(ターゲットが異常であると見なされるまでに必要なヘルスチェックの連続失敗回数)
+      UnhealthyThresholdCount: 2
+    # タイムアウト(ヘルスチェックを失敗と見なす、ターゲットからレスポンスがない時間)
+      HealthCheckTimeoutSeconds: 5
+    # 間隔(個々のターゲットのヘルスチェックの概算間隔)
+      HealthCheckIntervalSeconds: 30
+    # 成功コード(ターゲットからの正常なレスポンスを確認するために使用するHTTPコード)
+      Matcher: 
+        HttpCode: 200
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-tg
+
+
+ # ALB
+  ALB: 
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      Name: !Sub ${NameBase}-alb
+      Tags: 
+        - Key: Name
+          Value: !Sub ${NameBase}-alb
+      # ロードバランサの種類
+      Type: application
+      # スキーム(内部向けかインターネット向けか)
+      Scheme: internet-facing
+      # ロードバランサーの IP アドレスタイプ
+      IpAddressType: ipv4
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+
+
+ # リスナー設定
+  ALBListener: 
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      # デフォルトアクション(リクエストをルーティングするためのデフォルトのルールを指定)
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          # ルールアクションタイプ
+          # forwardは指定されたターゲットグループにリクエストを転送
+          Type: forward        
+
+
+# Outputs
+Outputs:
+  VPCId:
+    Description: The ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPCId
+
+  PublicSubnet1Id:
+    Description: The ID of the publicsubnet1
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet1Id
+
+  PublicSubnet2Id:
+    Description: The ID of the publicsubnet2
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet2Id
+
+  PrivateSubnet1Id:
+    Description: The ID of the PrivateSubnet1
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet1Id
+
+  PrivateSubnet2Id:
+    Description: The ID of the PrivateSubnet2
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet2Id
+
+  ALBSecurityGroupId:
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: lecture10-alb-sg-id
+
+  EC2Id: 
+    Description: The ID of the created EC2 instance
+    Value: !Ref EC2
+    Export:
+      Name: !Sub ${AWS::StackName}-EC2Id
+
+  EC2SGId:
+    Description: The ID of the created EC2 SecurityGroup
+    Value: !Ref EC2SecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-EC2SGId             
+
+
+
+
+
+  

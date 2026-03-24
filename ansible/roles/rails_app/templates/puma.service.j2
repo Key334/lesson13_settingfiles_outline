@@ -1,0 +1,37 @@
+[Unit]
+Description=Puma HTTP Server for {{ app_name }}
+After=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+WorkingDirectory={{ app_dir }}
+
+# rbenv のパスを通す
+Environment=PATH=/home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin:/home/{{ app_user }}/.rbenv/shims:/home/{{ app_user }}/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+
+# Rails 設定
+Environment=RAILS_ENV={{ rails_env }}
+Environment=RAILS_MASTER_KEY={{ rails_master_key }}
+
+# データベース接続情報
+Environment=DB_HOST={{ db_host }}
+Environment=DB_NAME={{ db_name }}
+Environment=DB_USERNAME={{ db_username }}
+Environment=DB_PASSWORD={{ db_password }}
+
+# S3 バケット名
+Environment=AWS_S3_BUCKET_NAME={{ s3_bucket_name }}
+
+ExecStart=/home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin/bundle exec puma -C config/puma.rb
+ExecStop=/bin/kill -TSTP $MAINPID
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=puma
+
+[Install]
+WantedBy=multi-user.target

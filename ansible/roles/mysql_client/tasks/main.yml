@@ -1,0 +1,22 @@
+---
+# mysql2 gem のビルドに必要なMySQL 8.0 クライアントライブラリをインストール
+
+- name: Install MySQL 8.0 community release RPM
+  yum:
+    name: https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm
+    state: present
+  ignore_errors: true
+
+- name: Import MySQL 2022 GPG key
+  rpm_key:
+    state: present
+    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+- name: Install MySQL 8.0 client and development libraries
+  yum:
+    name:
+      - mysql-community-client
+      - mysql-community-devel
+    state: present
+    enablerepo: mysql80-community
+    disablerepo: mysql57-community

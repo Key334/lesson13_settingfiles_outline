@@ -1,0 +1,26 @@
+---
+# Ruby バージョン
+ruby_version: "3.2.3"
+
+# アプリケーション設定
+app_name: raisetech-live8-sample-app
+app_repo: "https://github.com/yuta-ushijima/raisetech-live8-sample-app.git"
+app_dir: "/var/www/raisetech-live8-sample-app"
+app_user: ec2-user
+
+# Rails 環境
+rails_env: production
+
+# ---- 以下はCloudFormationデプロイ後に実際の値に変更してください ----
+
+# RDS接続情報（AWSコンソールのRDSエンドポイントを確認してください）
+db_host: "YOUR_RDS_ENDPOINT.ap-northeast-1.rds.amazonaws.com"
+db_name: "RDS2"
+db_username: "YOUR_DB_USERNAME"
+db_password: "YOUR_DB_PASSWORD"
+
+# S3バケット名（CloudFormationで作成したバケット名）
+s3_bucket_name: "raisetech-lecture10-cf"
+
+# Rails master key（config/master.key の内容、またはアプリ作成者から取得してください）
+rails_master_key: "YOUR_RAILS_MASTER_KEY"
