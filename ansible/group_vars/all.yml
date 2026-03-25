@@ -20,7 +20,7 @@ db_username: "YOUR_DB_USERNAME"
 db_password: "YOUR_DB_PASSWORD"
 
 # S3バケット名（CloudFormationで作成したバケット名）
-s3_bucket_name: "raisetech-lecture13-sample-bucket"
+s3_bucket_name: "takomu551-lecture13-s3-bucket"
 
 # secret_key_base（以下コマンドで生成: ruby -e "require 'securerandom'; puts SecureRandom.hex(64)"）
 secret_key_base: "YOUR_SECRET_KEY_BASE"

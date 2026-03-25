@@ -8,7 +8,7 @@ version: 2.1
 #   KEY_NAME                 : EC2キーペア名（例: my-keypair）
 #   MY_CIDR_IP               : SSH接続を許可するCIDR（例: 0.0.0.0/0）
 #   SECRET_KEY_BASE          : Railsのsecret_key_base（ruby -e "require 'securerandom'; puts SecureRandom.hex(64)" で生成）
-#   S3_BUCKET_NAME           : S3バケット名（例: raisetech-lecture10-cf）
+#   S3_BUCKET_NAME           : S3バケット名（例: takomu551-lecture13-s3-bucket）
 #
 #   ※ DB_USERNAME / DB_PASSWORD は Secrets Manager から自動取得するため不要
 #   ※ SSH秘密鍵のフィンガープリントは下記 add_ssh_keys に直接記入してください
@@ -69,7 +69,7 @@ jobs:
           name: Get EC2 public IP
           command: |
             EC2_ID=$(aws cloudformation describe-stacks \
-              --stack-name raisetech2-lecture13 \
+              --stack-name takomu551-lecture13 \
               --query "Stacks[0].Outputs[?OutputKey=='EC2Id'].OutputValue" \
               --output text)
 
@@ -84,7 +84,7 @@ jobs:
           name: Get RDS endpoint
           command: |
             RDS_ENDPOINT=$(aws rds describe-db-instances \
-              --db-instance-identifier raisetech2-lecture13-db \
+              --db-instance-identifier takomu551-lecture13-db \
               --query "DBInstances[0].Endpoint.Address" \
               --output text)
 
@@ -94,7 +94,7 @@ jobs:
           name: Show ALB DNS Name
           command: |
             ALB_DNS=$(aws cloudformation describe-stacks \
-              --stack-name raisetech2-lecture13 \
+              --stack-name takomu551-lecture13 \
               --query "Stacks[0].Outputs[?OutputKey=='ALBDnsName'].OutputValue" \
               --output text)
 
@@ -143,7 +143,7 @@ jobs:
           name: Fetch DB credentials from Secrets Manager
           command: |
             aws secretsmanager get-secret-value \
-              --secret-id MySecret \
+              --secret-id takomu551-lecture13-secret \
               --query SecretString \
               --output text | python3 -c "
             import sys, json, os, shlex
