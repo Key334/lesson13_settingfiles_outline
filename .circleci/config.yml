@@ -58,7 +58,7 @@ jobs:
           command: |
             aws cloudformation deploy \
               --template-file cloudformation/templete.yml \
-              --stack-name raisetech2-lecture13 \
+              --stack-name takomu551-lecture13 \
               --parameter-overrides \
                 KeyName=${KEY_NAME} \
                 MyCidrIp=${MY_CIDR_IP} \
