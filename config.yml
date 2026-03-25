@@ -84,7 +84,7 @@ jobs:
           name: Get RDS endpoint
           command: |
             RDS_ENDPOINT=$(aws rds describe-db-instances \
-              --db-instance-identifier database-2 \
+              --db-instance-identifier raisetech2-lecture13-db \
               --query "DBInstances[0].Endpoint.Address" \
               --output text)
 

@@ -30,7 +30,7 @@ Resources:
   RDSSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: MySecret
+      Name: !Sub "${NameBase}-secret"
       Description: !Sub "RDS master credentials for ${NameBase}"
       GenerateSecretString:
         SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
@@ -207,7 +207,7 @@ Resources:
         Status: Suspended 
       Tags:
         - Key: Name
-          Value: raisetech
+          Value: !Sub "${NameBase}"
 
 # RDS
   # サブネットグループ作成
@@ -215,13 +215,13 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: For RDS
-      DBSubnetGroupName: raisetech2-lecture10-DBSubnetGroup
+      DBSubnetGroupName: !Sub "${NameBase}-DBSubnetGroup"
       SubnetIds:
       - !Ref PrivateSubnet1
       - !Ref PrivateSubnet2
       Tags:
       - Key: Name
-        Value: raisetech2-lecture10-DBSubnetGroup
+        Value: !Sub "${NameBase}-DBSubnetGroup"
 
 
   # RDSインスタンス作成
@@ -230,12 +230,12 @@ Resources:
     DependsOn: RDSSecret
     Properties:
       # 設定したいDBインスタンス識別子
-      DBInstanceIdentifier: database-2
+      DBInstanceIdentifier: !Sub "${NameBase}-db"
       DBInstanceClass: db.t3.micro
       Engine: MySQL
       EngineVersion: 8.0.35
-      MasterUsername: "{{resolve:secretsmanager:MySecret:SecretString:username}}"
-      MasterUserPassword: "{{resolve:secretsmanager:MySecret:SecretString:password}}"
+      MasterUsername: !Sub "{{resolve:secretsmanager:${NameBase}-secret:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${NameBase}-secret:SecretString:password}}"
       DBName: RDS2
       AvailabilityZone: 
         !Select [0, !GetAZs '']
@@ -260,18 +260,18 @@ Resources:
        - !Ref RDSSecurityGroup
       Tags:
         - Key: Name
-          Value: !Sub ${NameBase}-lecture10-RDS
+          Value: !Sub ${NameBase}-RDS
 
 
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref VPC
-      GroupName: raisetech2-lecture10-RDS-sg
+      GroupName: !Sub "${NameBase}-RDS-sg"
       GroupDescription: for RDS
       Tags:
         - Key: Name
-          Value: raisetech2-lecture10-RDS-sg
+          Value: !Sub "${NameBase}-RDS-sg"
 
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -287,7 +287,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
           - Key: Name
-            Value: !Sub ${NameBase}-sg-ec2-lecture10
+            Value: !Sub "${NameBase}-sg-ec2"
       # インバウンドルール
       SecurityGroupIngress: 
       # ssh
@@ -349,7 +349,7 @@ Resources:
       Path: "/"
       Tags:
         - Key: Name
-          Value: !Sub "lecture10-iamrole-${NameBase}"
+          Value: !Sub "s3accessiamrole-${NameBase}"
 
   # IAM Policy
   S3AccessPolicies:
@@ -493,7 +493,7 @@ Outputs:
   ALBSecurityGroupId:
     Value: !Ref ALBSecurityGroup
     Export:
-      Name: lecture10-alb-sg-id
+      Name: !Sub "${AWS::StackName}-ALBSecurityGroupId"
 
   EC2Id: 
     Description: The ID of the created EC2 instance
