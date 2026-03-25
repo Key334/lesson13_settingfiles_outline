@@ -13,6 +13,12 @@
     mode: '0644'
   notify: Restart Nginx
 
+# nginx が /home/ec2-user/ 配下のソケットに到達できるよう実行権限を付与
+- name: Allow nginx to traverse ec2-user home directory
+  file:
+    path: /home/ec2-user
+    mode: '0711'
+
 - name: Start and enable Nginx service
   service:
     name: nginx

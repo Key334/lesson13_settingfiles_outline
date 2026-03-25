@@ -6,7 +6,7 @@ require 'spec_helper'
 http_port       = 80
 redis_port      = 6379
 ruby_version    = '3.2.3'
-app_dir         = '/var/www/raisetech-live8-sample-app'
+app_dir         = '/home/ec2-user/raisetech-live8-sample-app'
 app_user        = 'ec2-user'
 
 # ================================================================
@@ -142,11 +142,6 @@ describe file("#{app_dir}/config/database.yml") do
   it { should be_mode 640 }
 end
 
-describe file("#{app_dir}/config/master.key") do
-  it { should be_file }
-  it { should be_owned_by app_user }
-  it { should be_mode 400 }
-end
 
 describe file("#{app_dir}/tmp/sockets/puma.sock") do
   it { should be_socket }

@@ -12,7 +12,7 @@ Environment=PATH=/home/{{ app_user }}/.rbenv/versions/{{ ruby_version }}/bin:/ho
 
 # Rails 設定
 Environment=RAILS_ENV={{ rails_env }}
-Environment=RAILS_MASTER_KEY={{ rails_master_key }}
+Environment=SECRET_KEY_BASE={{ secret_key_base }}
 
 # データベース接続情報
 Environment=DB_HOST={{ db_host }}

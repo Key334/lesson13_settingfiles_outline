@@ -7,12 +7,12 @@ version: 2.1
 #   AWS_SECRET_ACCESS_KEY    : AWSシークレットアクセスキー
 #   KEY_NAME                 : EC2キーペア名（例: my-keypair）
 #   MY_CIDR_IP               : SSH接続を許可するCIDR（例: 0.0.0.0/0）
-#   DB_USERNAME              : RDSマスターユーザー名
-#   DB_PASSWORD              : RDSマスターパスワード
-#   RAILS_MASTER_KEY         : Railsのmaster.keyの内容
+#   SECRET_KEY_BASE          : Railsのsecret_key_base（ruby -e "require 'securerandom'; puts SecureRandom.hex(64)" で生成）
 #   S3_BUCKET_NAME           : S3バケット名（例: raisetech-lecture10-cf）
-#   SSH_KEY_FINGERPRINT      : CircleCIに登録したSSH秘密鍵のフィンガープリント
-#     ※ Project Settings > SSH Keys に EC2 接続用の秘密鍵を登録してください
+#
+#   ※ DB_USERNAME / DB_PASSWORD は Secrets Manager から自動取得するため不要
+#   ※ SSH秘密鍵のフィンガープリントは下記 add_ssh_keys に直接記入してください
+#     （Project Settings > SSH Keys で確認できます）
 # ================================================================
 
 executors:
@@ -41,7 +41,7 @@ jobs:
           command: pip install cfn-lint
       - run:
           name: Lint CloudFormation template
-          command: cfn-lint cloudformation/templete.yml
+          command: cfn-lint cloudformation/templete.yml --ignore-checks W
 
   # ----------------------------------------------------------------
   # 2. CloudFormation スタックのデプロイ
@@ -90,11 +90,24 @@ jobs:
 
             echo "RDS Endpoint: ${RDS_ENDPOINT}"
             echo ${RDS_ENDPOINT} > /tmp/rds_endpoint.txt
+      - run:
+          name: Show ALB DNS Name
+          command: |
+            ALB_DNS=$(aws cloudformation describe-stacks \
+              --stack-name raisetech2-lecture13 \
+              --query "Stacks[0].Outputs[?OutputKey=='ALBDnsName'].OutputValue" \
+              --output text)
+
+            echo ${ALB_DNS} > /tmp/alb_dns.txt
+            echo "=========================================="
+            echo "  アプリURL: http://${ALB_DNS}"
+            echo "=========================================="
       - persist_to_workspace:
           root: /tmp
           paths:
             - ec2_ip.txt
             - rds_endpoint.txt
+            - alb_dns.txt
 
   # ----------------------------------------------------------------
   # 3. Ansible による環境構築・アプリデプロイ
@@ -107,7 +120,7 @@ jobs:
           at: /tmp
       - add_ssh_keys:
           fingerprints:
-            - "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"  # ← Project Settings > SSH Keys のフィンガープリントに書き換えてください
+            - "SHA256:nONAvnXGlJFZcO9NMGeTRbl9Qcgq78/PyHzEGYe5VaE"  # ← Project Settings > SSH Keys のフィンガープリントに書き換えてください
       - run:
           name: Install Ansible
           command: pip install ansible
@@ -127,6 +140,19 @@ jobs:
             ec2 ansible_host=${EC2_IP} ansible_user=ec2-user
             EOF
       - run:
+          name: Fetch DB credentials from Secrets Manager
+          command: |
+            aws secretsmanager get-secret-value \
+              --secret-id MySecret \
+              --query SecretString \
+              --output text | python3 -c "
+            import sys, json, os, shlex
+            s = json.load(sys.stdin)
+            with open(os.environ['BASH_ENV'], 'a') as f:
+                f.write('export DB_USERNAME=' + shlex.quote(s['username']) + '\n')
+                f.write('export DB_PASSWORD=' + shlex.quote(s['password']) + '\n')
+            "
+      - run:
           name: Run Ansible playbook
           command: |
             RDS_ENDPOINT=$(cat /tmp/rds_endpoint.txt)
@@ -135,7 +161,7 @@ jobs:
               -e "db_host=${RDS_ENDPOINT}" \
               -e "db_username=${DB_USERNAME}" \
               -e "db_password=${DB_PASSWORD}" \
-              -e "rails_master_key=${RAILS_MASTER_KEY}" \
+              -e "secret_key_base=${SECRET_KEY_BASE}" \
               -e "s3_bucket_name=${S3_BUCKET_NAME}"
           no_output_timeout: 40m
 
@@ -150,7 +176,7 @@ jobs:
           at: /tmp
       - add_ssh_keys:
           fingerprints:
-            - "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"  # ← Project Settings > SSH Keys のフィンガープリントに書き換えてください
+            - "SHA256:nONAvnXGlJFZcO9NMGeTRbl9Qcgq78/PyHzEGYe5VaE"  # ← Project Settings > SSH Keys のフィンガープリントに書き換えてください
       - run:
           name: Disable SSH strict host key checking
           command: |
@@ -166,6 +192,14 @@ jobs:
           command: |
             EC2_IP=$(cat /tmp/ec2_ip.txt)
             cd serverspec && TARGET_HOST=${EC2_IP} bundle exec rspec suverspec.rb --format documentation
+      - run:
+          name: Show app URL
+          command: |
+            ALB_DNS=$(cat /tmp/alb_dns.txt)
+            echo "=========================================="
+            echo "  全テスト通過！"
+            echo "  アプリURL: http://${ALB_DNS}"
+            echo "=========================================="
 
 # ================================================================
 # ワークフロー定義

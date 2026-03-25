@@ -16,10 +16,27 @@ Parameters:
   MyCidrIp:
     NoEcho: true
     Type: String
-    Description: Enter the CIDR IP for the security group ingress rule    
+    Description: Enter the CIDR IP for the security group ingress rule
+
+  DBUsername:
+    Type: String
+    Default: admin
+    Description: Master username for RDS
 
 
 Resources:
+
+ # Secrets Manager（RDS認証情報を自動生成）
+  RDSSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: MySecret
+      Description: !Sub "RDS master credentials for ${NameBase}"
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
  # vpc
   VPC:
     Type: AWS::EC2::VPC
@@ -210,6 +227,7 @@ Resources:
   # RDSインスタンス作成
   RDSInstance:
     Type: AWS::RDS::DBInstance
+    DependsOn: RDSSecret
     Properties:
       # 設定したいDBインスタンス識別子
       DBInstanceIdentifier: database-2
@@ -487,7 +505,13 @@ Outputs:
     Description: The ID of the created EC2 SecurityGroup
     Value: !Ref EC2SecurityGroup
     Export:
-      Name: !Sub ${AWS::StackName}-EC2SGId             
+      Name: !Sub ${AWS::StackName}-EC2SGId
+
+  ALBDnsName:
+    Description: The DNS name of the ALB
+    Value: !GetAtt ALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-ALBDnsName             
 
 
 

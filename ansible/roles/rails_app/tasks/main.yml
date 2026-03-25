@@ -35,14 +35,6 @@
     group: "{{ app_user }}"
     mode: '0640'
 
-- name: Deploy master.key
-  copy:
-    content: "{{ rails_master_key }}"
-    dest: "{{ app_dir }}/config/master.key"
-    owner: "{{ app_user }}"
-    group: "{{ app_user }}"
-    mode: '0400'
-
 - name: Run bundle install
   become_user: "{{ app_user }}"
   shell: >
@@ -63,7 +55,7 @@
   environment:
     PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"
     RAILS_ENV: "{{ rails_env }}"
-    RAILS_MASTER_KEY: "{{ rails_master_key }}"
+    SECRET_KEY_BASE: "{{ secret_key_base }}"
     DB_HOST: "{{ db_host }}"
     DB_NAME: "{{ db_name }}"
     DB_USERNAME: "{{ db_username }}"
@@ -79,7 +71,7 @@
   environment:
     PATH: "/home/{{ app_user }}/.rbenv/bin:/home/{{ app_user }}/.rbenv/shims:/usr/local/bin:/usr/bin:/bin"
     RAILS_ENV: "{{ rails_env }}"
-    RAILS_MASTER_KEY: "{{ rails_master_key }}"
+    SECRET_KEY_BASE: "{{ secret_key_base }}"
     DB_HOST: "{{ db_host }}"
     DB_NAME: "{{ db_name }}"
     DB_USERNAME: "{{ db_username }}"
