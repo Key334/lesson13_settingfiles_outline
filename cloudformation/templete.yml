@@ -5,7 +5,7 @@ Description: VPC ALBSG S3 RDS EC2 ALB create
 Parameters:
   NameBase: 
     Type: String
-    Default: raisetech2-lecture13
+    Default: takomu551-lecture13
     Description: Base name for resources
 
   KeyName:
