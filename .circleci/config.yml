@@ -135,7 +135,7 @@ jobs:
           name: Generate inventory from EC2 IP
           command: |
             EC2_IP=$(cat /tmp/ec2_ip.txt)
-            cat > ansible/inventory << EOF
+            cat > ansible/inventory \<< EOF
             [web]
             ec2 ansible_host=${EC2_IP} ansible_user=ec2-user
             EOF
