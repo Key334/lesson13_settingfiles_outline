@@ -170,7 +170,7 @@ Resources:
     # S3バケット作成
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: raisetech-lecture10-cf
+      BucketName: raisetech-lecture13-sample-bucket
       # 暗号化についての設定
       BucketEncryption:
         ServerSideEncryptionConfiguration: 

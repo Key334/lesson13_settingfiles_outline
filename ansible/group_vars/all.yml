@@ -20,7 +20,7 @@ db_username: "YOUR_DB_USERNAME"
 db_password: "YOUR_DB_PASSWORD"
 
 # S3バケット名（CloudFormationで作成したバケット名）
-s3_bucket_name: "raisetech-lecture10-cf"
+s3_bucket_name: "raisetech-lecture13-sample-bucket"
 
 # Rails master key（config/master.key の内容、またはアプリ作成者から取得してください）
 rails_master_key: "YOUR_RAILS_MASTER_KEY"
