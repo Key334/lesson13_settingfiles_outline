@@ -160,12 +160,12 @@ jobs:
             echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
       - run:
           name: Install serverspec
-          command: bundle install
+          command: cd serverspec && bundle install
       - run:
           name: Run serverspec
           command: |
             EC2_IP=$(cat /tmp/ec2_ip.txt)
-            TARGET_HOST=${EC2_IP} bundle exec rspec suverspec.rb --format documentation
+            cd serverspec && TARGET_HOST=${EC2_IP} bundle exec rspec suverspec.rb --format documentation
 
 # ================================================================
 # ワークフロー定義
