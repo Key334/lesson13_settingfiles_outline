@@ -233,7 +233,7 @@ Resources:
       DBInstanceIdentifier: !Sub "${NameBase}-db"
       DBInstanceClass: db.t3.micro
       Engine: MySQL
-      EngineVersion: 8.0.35
+      EngineVersion: 8.0.39
       MasterUsername: !Sub "{{resolve:secretsmanager:${NameBase}-secret:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${NameBase}-secret:SecretString:password}}"
       DBName: RDS2
